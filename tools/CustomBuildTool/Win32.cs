@@ -58,7 +58,7 @@ namespace CustomBuildTool
 
                     process.OutputDataReceived += (_, e) => { output.Append(e.Data); };
                     process.ErrorDataReceived += (_, e) => { error.Append(e.Data); };
-  
+
                     process.Start();
                     process.BeginOutputReadLine();
                     process.BeginErrorReadLine();
@@ -99,7 +99,7 @@ namespace CustomBuildTool
                 Share = FileShare.None
             };
 
-            using (FileStream file = new FileStream(FileName, options)) 
+            using (FileStream file = new FileStream(FileName, options))
             {
                 file.Close();
             }
@@ -407,5 +407,19 @@ namespace CustomBuildTool
             //Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.High;
             NativeMethods.SetPriorityClass(NativeMethods.CURRENT_PROCESS, NativeMethods.HIGH_PRIORITY_CLASS);
         }
+
+        public static unsafe void SetFileTime(
+            string FileName,
+            long CreationDateTime,
+            long LastWriteDateTime
+            )
+        {
+            NativeMethods.FILE_BASIC_INFO basicInfo;
+            basicInfo.CreationTime = CreationDateTime == 0 ? DateTime.UtcNow.ToFileTimeUtc() : CreationDateTime;
+            basicInfo.LastWriteTime = LastWriteDateTime == 0 ? DateTime.UtcNow.ToFileTimeUtc() : LastWriteDateTime;
+
+            using var fs = File.OpenWrite(FileName);
+            NativeMethods.SetFileInformationByHandle(fs.SafeFileHandle, 0, &basicInfo, (uint)sizeof(NativeMethods.FILE_BASIC_INFO));
+        }        
     }
 }

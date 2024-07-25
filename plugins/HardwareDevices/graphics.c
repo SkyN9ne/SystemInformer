@@ -587,6 +587,101 @@ BOOLEAN GraphicsQueryDeviceInterfaceLuid(
 }
 
 _Success_(return)
+BOOLEAN GraphicsQueryDeviceInterfaceAdapterIndexUnique(
+    _In_ DEVINST DeviceInstanceHandle,
+    _In_ PCWSTR DeviceInterface,
+    _Out_ PULONG PhysicalAdapterIndex
+    )
+{
+    static PH_INITONCE initOnce = PH_INITONCE_INIT;
+    static PPH_LIST gpuLuids = NULL;
+    static PPH_LIST npuLuids = NULL;
+    LUID luid;
+    ULONG luidSize;
+    DEVPROPTYPE propertyType;
+    D3DKMT_HANDLE adapterHandle;
+
+    *PhysicalAdapterIndex = 0;
+
+    // DEVPKEY_Gpu_PhysicalAdapterIndex can be the same between different graphics devices.
+    // This option makes them unique for each type we display, this mimics the behavior of similar
+    // tools that display information about graphics devices. Note this has nothing to do with
+    // NPU vs GPU, for example on laptops with an integrated and dedicated GPU they might show
+    // the same index in the UI, this resolves that.
+
+    if (PhBeginInitOnce(&initOnce))
+    {
+        gpuLuids = PhCreateList(1);
+        npuLuids = PhCreateList(1);
+
+        PhEndInitOnce(&initOnce);
+    }
+
+    luidSize = sizeof(LUID);
+    propertyType = DEVPROP_TYPE_EMPTY;
+
+    if (CM_Get_DevNode_Property(
+        DeviceInstanceHandle,
+        &DEVPKEY_Gpu_Luid,
+        &propertyType,
+        (PBYTE)&luid,
+        &luidSize,
+        0
+        ) != CR_SUCCESS)
+    {
+        return FALSE;
+    }
+
+    for (ULONG i = 0; i < gpuLuids->Count; i++)
+    {
+        if (luid.LowPart == PtrToUlong(gpuLuids->Items[i]))
+        {
+            *PhysicalAdapterIndex = i;
+            return TRUE;
+        }
+    }
+
+    for (ULONG i = 0; i < npuLuids->Count; i++)
+    {
+        if (luid.LowPart == PtrToUlong(npuLuids->Items[i]))
+        {
+            *PhysicalAdapterIndex = i;
+            return TRUE;
+        }
+    }
+
+    BOOLEAN npuDevice = FALSE;
+
+    if (NT_SUCCESS(GraphicsOpenAdapterFromDeviceName(&adapterHandle, NULL, (PWSTR)DeviceInterface)))
+    {
+        GX_ADAPTER_ATTRIBUTES adapterSttributes;
+
+        if (NT_SUCCESS(GraphicsQueryAdapterAttributes(
+            adapterHandle,
+            &adapterSttributes
+            )))
+        {
+            npuDevice = !!adapterSttributes.TypeNpu;
+        }
+
+        GraphicsCloseAdapterHandle(adapterHandle);
+    }
+
+    if (npuDevice)
+    {
+        PhAddItemList(npuLuids, UlongToPtr(luid.LowPart));
+        *PhysicalAdapterIndex = npuLuids->Count - 1;
+    }
+    else
+    {
+        PhAddItemList(gpuLuids, UlongToPtr(luid.LowPart));
+        *PhysicalAdapterIndex = gpuLuids->Count - 1;
+    }
+
+    return TRUE;
+}
+
+_Success_(return)
 BOOLEAN GraphicsQueryDeviceInterfaceAdapterIndex(
     _In_ PCWSTR DeviceInterface,
     _Out_ PULONG PhysicalAdapterIndex
@@ -616,6 +711,18 @@ BOOLEAN GraphicsQueryDeviceInterfaceAdapterIndex(
         ) != CR_SUCCESS)
     {
         return FALSE;
+    }
+
+    if (PhGetIntegerSetting(SETTING_NAME_GRAPHICS_UNIQUE_INDICES))
+    {
+        if (GraphicsQueryDeviceInterfaceAdapterIndexUnique(
+            deviceInstanceHandle,
+            DeviceInterface,
+            PhysicalAdapterIndex
+            ))
+        {
+            return TRUE;
+        }
     }
 
     if (NetWindowsVersion >= WINDOWS_10)
@@ -784,4 +891,160 @@ PPH_LIST GraphicsQueryDeviceNodeList(
     }
 
     return NodeNameList;
+}
+
+NTSTATUS GraphicsQueryAdapterPropertyString(
+    _In_ D3DKMT_HANDLE AdapterHandle,
+    _In_ PPH_STRINGREF PropertyName,
+    _Out_ PPH_STRING* String
+    )
+{
+    NTSTATUS status;
+    ULONG regInfoSize;
+    D3DDDI_QUERYREGISTRY_INFO* regInfo;
+
+    *String = NULL;
+
+    regInfoSize = sizeof(D3DDDI_QUERYREGISTRY_INFO) + 512;
+    regInfo = PhAllocateZero(regInfoSize);
+
+    regInfo->QueryType = D3DDDI_QUERYREGISTRY_ADAPTERKEY;
+    regInfo->QueryFlags.TranslatePath = 1;
+    regInfo->ValueType = REG_MULTI_SZ;
+
+    memcpy(regInfo->ValueName, PropertyName->Buffer, PropertyName->Length);
+
+    if (!NT_SUCCESS(status = GraphicsQueryAdapterInformation(
+        AdapterHandle,
+        KMTQAITYPE_QUERYREGISTRY,
+        regInfo,
+        regInfoSize
+        )))
+        goto CleanupExit;
+
+    if (regInfo->Status == D3DDDI_QUERYREGISTRY_STATUS_BUFFER_OVERFLOW)
+    {
+        regInfoSize = regInfo->OutputValueSize;
+        regInfo = PhReAllocate(regInfo, regInfoSize);
+
+        if (!NT_SUCCESS(status = GraphicsQueryAdapterInformation(
+            AdapterHandle,
+            KMTQAITYPE_QUERYREGISTRY,
+            regInfo,
+            regInfoSize
+            )))
+            goto CleanupExit;
+    }
+
+    if (regInfo->Status != D3DDDI_QUERYREGISTRY_STATUS_SUCCESS)
+    {
+        status = STATUS_REGISTRY_IO_FAILED;
+        goto CleanupExit;
+    }
+
+    *String = PhCreateStringEx(regInfo->OutputString, regInfo->OutputValueSize);
+
+CleanupExit:
+
+    PhFree(regInfo);
+
+    return status;
+}
+
+NTSTATUS GraphicsQueryAdapterAttributes(
+    _In_ D3DKMT_HANDLE AdapterHandle,
+    _Out_ PGX_ADAPTER_ATTRIBUTES Attributes
+    )
+{
+    static PH_STRINGREF dxCoreAttributes = PH_STRINGREF_INIT(L"DXCoreAttributes");
+    static PH_STRINGREF dxAttributes = PH_STRINGREF_INIT(L"DXAttributes");
+    NTSTATUS status;
+    PPH_STRING adapterAttributes;
+
+    Attributes->Flags = 0;
+
+    // DXCoreAdapter::QueryAndFillAdapterExtendedProperiesOnPlatform
+    if (!NT_SUCCESS(status = GraphicsQueryAdapterPropertyString(AdapterHandle, &dxCoreAttributes, &adapterAttributes)))
+        if (!NT_SUCCESS(status = GraphicsQueryAdapterPropertyString(AdapterHandle, &dxAttributes, &adapterAttributes)))
+            return status;
+
+    for (PWCHAR attr = adapterAttributes->Buffer;;)
+    {
+        PH_STRINGREF attribute;
+        GUID guid;
+
+        PhInitializeStringRef(&attribute, attr);
+
+        if (!attribute.Length)
+            break;
+
+        attr = PTR_ADD_OFFSET(attr, attribute.Length + sizeof(UNICODE_NULL));
+
+        if (!NT_SUCCESS(status = PhStringToGuid(&attribute, &guid)))
+            break;
+
+        if (IsEqualGUID(&guid, &DXCORE_HARDWARE_TYPE_ATTRIBUTE_GPU))
+        {
+            Attributes->TypeGpu = TRUE;
+            continue;
+        }
+
+        if (IsEqualGUID(&guid, &DXCORE_HARDWARE_TYPE_ATTRIBUTE_COMPUTE_ACCELERATOR))
+        {
+            Attributes->TypeComputeAccelerator = TRUE;
+            continue;
+        }
+
+        if (IsEqualGUID(&guid, &DXCORE_HARDWARE_TYPE_ATTRIBUTE_NPU))
+        {
+            Attributes->TypeNpu = TRUE;
+            continue;
+        }
+
+        if (IsEqualGUID(&guid, &DXCORE_HARDWARE_TYPE_ATTRIBUTE_MEDIA_ACCELERATOR))
+        {
+            Attributes->TypeMediaAccelerator = TRUE;
+            continue;
+        }
+
+        if (IsEqualGUID(&guid, &DXCORE_ADAPTER_ATTRIBUTE_D3D11_GRAPHICS))
+        {
+            Attributes->D3D11Graphics = TRUE;
+            continue;
+        }
+
+        if (IsEqualGUID(&guid, &DXCORE_ADAPTER_ATTRIBUTE_D3D12_GRAPHICS))
+        {
+            Attributes->D3D12Graphics = TRUE;
+            continue;
+        }
+
+        if (IsEqualGUID(&guid, &DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE))
+        {
+            Attributes->D3D12CoreCompute = TRUE;
+            continue;
+        }
+
+        if (IsEqualGUID(&guid, &DXCORE_ADAPTER_ATTRIBUTE_D3D12_GENERIC_ML))
+        {
+            Attributes->D3D12GenericML = TRUE;
+            continue;
+        }
+
+        if (IsEqualGUID(&guid, &DXCORE_ADAPTER_ATTRIBUTE_D3D12_GENERIC_MEDIA))
+        {
+            Attributes->D3D12GenericMedia = TRUE;
+            continue;
+        }
+
+        if (IsEqualGUID(&guid, &DXCORE_ADAPTER_ATTRIBUTE_WSL))
+        {
+            Attributes->WSL = TRUE;
+            continue;
+        }
+    }
+
+    PhDereferenceObject(adapterAttributes);
+
+    return status;
 }

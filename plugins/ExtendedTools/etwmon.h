@@ -63,6 +63,7 @@ typedef struct
 #define KERNEL_FILE_KEYWORD_FILENAME 0x10
 #define KERNEL_FILE_KEYWORD_FILEIO 0x20
 #define KERNEL_FILE_KEYWORD_OP_END 0x40
+#define KERNEL_FILE_KEYWORD_CREATE 0x80
 #define KERNEL_FILE_KEYWORD_READ 0x100
 #define KERNEL_FILE_KEYWORD_WRITE 0x200
 #define KERNEL_FILE_KEYWORD_DELETE_PATH 0x400
@@ -117,27 +118,27 @@ typedef enum _ET_ETW_EVENT_TYPE
 
 typedef struct _ET_ETW_DISK_EVENT
 {
-    ET_ETW_EVENT_TYPE Type;
-    CLIENT_ID ClientId;
+    ULONG Type;
     ULONG IrpFlags;
     ULONG TransferSize;
+    CLIENT_ID ClientId;
     PVOID FileObject;
     ULONGLONG HighResResponseTime;
 } ET_ETW_DISK_EVENT, *PET_ETW_DISK_EVENT;
 
 typedef struct _ET_ETW_FILE_EVENT
 {
-    ET_ETW_EVENT_TYPE Type;
+    ULONG Type;
     PVOID FileObject;
     PH_STRINGREF FileName;
 } ET_ETW_FILE_EVENT, *PET_ETW_FILE_EVENT;
 
 typedef struct _ET_ETW_NETWORK_EVENT
 {
-    ET_ETW_EVENT_TYPE Type;
-    CLIENT_ID ClientId;
+    ULONG Type;
     ULONG ProtocolType;
     ULONG TransferSize;
+    CLIENT_ID ClientId;
     PH_IP_ENDPOINT LocalEndpoint;
     PH_IP_ENDPOINT RemoteEndpoint;
 } ET_ETW_NETWORK_EVENT, *PET_ETW_NETWORK_EVENT;

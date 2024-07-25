@@ -54,7 +54,7 @@ VOID EtpGpuDetailsAddListViewItemGroups(
     PhAddListViewGroupItem(ListViewHandle, GpuGroupId, GPUADAPTER_DETAILS_INDEX_TEMPERATURE, L"Temperature", NULL);
 }
 
-VOID EtpQueryAdapterDeviceProperties(
+VOID EtpGpuQueryAdapterDeviceProperties(
     _In_ PPH_STRING DeviceName,
     _In_ HWND ListViewHandle)
 {
@@ -81,7 +81,7 @@ VOID EtpQueryAdapterDeviceProperties(
     }
 }
 
-VOID EtpQueryAdapterRegistryInfo(
+VOID EtpGpuQueryAdapterRegistryInfo(
     _In_ D3DKMT_HANDLE AdapterHandle,
     _In_ HWND ListViewHandle)
 {
@@ -100,7 +100,7 @@ VOID EtpQueryAdapterRegistryInfo(
     }
 }
 
-VOID EtpQueryAdapterDriverModel(
+VOID EtpGpuQueryAdapterDriverModel(
     _In_ D3DKMT_HANDLE AdapterHandle,
     _In_ HWND ListViewHandle)
 {
@@ -123,7 +123,7 @@ VOID EtpQueryAdapterDriverModel(
     }
 }
 
-VOID EtpQueryAdapterDriverVersion(
+VOID EtpGpuQueryAdapterDriverVersion(
     _In_ D3DKMT_HANDLE AdapterHandle,
     _In_ HWND ListViewHandle)
 {
@@ -168,7 +168,7 @@ VOID EtpQueryAdapterDriverVersion(
     }
 }
 
-VOID EtpQueryAdapterDeviceIds(
+VOID EtpGpuQueryAdapterDeviceIds(
     _In_ D3DKMT_HANDLE AdapterHandle,
     _In_ HWND ListViewHandle)
 {
@@ -198,7 +198,7 @@ VOID EtpQueryAdapterDeviceIds(
     }
 }
 
-VOID EtpQueryAdapterPerfInfo(
+VOID EtpGpuQueryAdapterPerfInfo(
     _In_ D3DKMT_HANDLE AdapterHandle,
     _In_ HWND ListViewHandle)
 {
@@ -253,7 +253,7 @@ VOID EtpQueryAdapterPerfInfo(
         else
             PhSetListViewSubItem(ListViewHandle, GPUADAPTER_DETAILS_INDEX_POWERUSAGE, 1, PhaFormatString(L"%lu%%", adapterPerfData.Power * 100 / 1000)->Buffer);
 
-        if (PhGetIntegerSetting(SETTING_NAME_ENABLE_FAHRENHEIT))
+        if (EtGpuFahrenheitEnabled)
         {
             ULONG gpuCurrentTemp = adapterPerfData.Temperature * 100 / 1000;
             FLOAT gpuFahrenheitTemp = (FLOAT)(gpuCurrentTemp * 1.8 + 32);
@@ -324,13 +324,13 @@ VOID EtpGpuDetailsEnumAdapters(
             EtpGpuDetailsAddListViewItemGroups(ListViewHandle, i);
         }
 
-        EtpQueryAdapterDeviceProperties(gpuAdapter->DeviceInterface, ListViewHandle);
+        EtpGpuQueryAdapterDeviceProperties(gpuAdapter->DeviceInterface, ListViewHandle);
         //EtpQueryAdapterRegistryInfo(openAdapterFromDeviceName.AdapterHandle, ListViewHandle);
-        EtpQueryAdapterDriverModel(openAdapterFromDeviceName.hAdapter, ListViewHandle);
+        EtpGpuQueryAdapterDriverModel(openAdapterFromDeviceName.hAdapter, ListViewHandle);
         //EtpQueryAdapterDriverVersion(openAdapterFromDeviceName.AdapterHandle, ListViewHandle);
-        EtpQueryAdapterDeviceIds(openAdapterFromDeviceName.hAdapter, ListViewHandle);
+        EtpGpuQueryAdapterDeviceIds(openAdapterFromDeviceName.hAdapter, ListViewHandle);
         //EtQueryAdapterFeatureLevel(openAdapterFromDeviceName.AdapterLuid);
-        EtpQueryAdapterPerfInfo(openAdapterFromDeviceName.hAdapter, ListViewHandle);
+        EtpGpuQueryAdapterPerfInfo(openAdapterFromDeviceName.hAdapter, ListViewHandle);
 
         EtCloseAdapterHandle(openAdapterFromDeviceName.hAdapter);
     }

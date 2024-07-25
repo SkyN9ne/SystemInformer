@@ -639,12 +639,11 @@ PPH_STRING EtFwGetDnsReverseNameFromAddress(
                     &returnLength
                     ))
                 {
-                    PH_STRINGREF reverseNameString;
-
-                    reverseNameString.Buffer = reverseNameBuffer;
-                    reverseNameString.Length = returnLength - sizeof(UNICODE_NULL);
-
-                    PhAppendStringBuilder(&stringBuilder, &reverseNameString);
+                    PhAppendStringBuilderEx(
+                        &stringBuilder,
+                        reverseNameBuffer,
+                        returnLength - sizeof(UNICODE_NULL)
+                        );
                 }
                 else
                 {
@@ -1030,7 +1029,7 @@ VOID EtFwShowWhoisWindow(
 _Success_(return)
 BOOLEAN EtFwLookupPortServiceName(
     _In_ ULONG Port,
-    _Out_ PPH_STRINGREF ServiceName
+    _Out_ PPH_STRINGREF* ServiceName
     )
 {
     if (EtFwGetPluginInterface())

@@ -945,6 +945,21 @@ PhGetBaseNameChangeExtension(
     _In_ PPH_STRINGREF FileExtension
     );
 
+FORCEINLINE
+PPH_STRING
+NTAPI
+PhGetBaseNameChangeExtensionZ(
+    _In_ PPH_STRINGREF FileName,
+    _In_ PWSTR FileExtension
+    )
+{
+    PH_STRINGREF string;
+
+    PhInitializeStringRef(&string, FileExtension);
+
+    return PhGetBaseNameChangeExtension(FileName, &string);
+}
+
 _Success_(return)
 PHLIBAPI
 BOOLEAN
@@ -994,6 +1009,13 @@ VOID
 NTAPI
 PhGetSystemRoot(
     _Out_ PPH_STRINGREF SystemRoot
+    );
+
+PHLIBAPI
+VOID
+NTAPI
+PhGetNtSystemRoot(
+    _Out_ PPH_STRINGREF NtSystemRoot
     );
 
 PHLIBAPI
@@ -1289,6 +1311,7 @@ typedef struct _PH_CREATE_PROCESS_AS_USER_INFO
             _In_ PWSTR UserName;
             _In_ PWSTR Password;
             _In_opt_ ULONG LogonType;
+            _In_opt_ ULONG LogonFlags;
         };
         _In_ HANDLE ProcessIdWithToken; // use PH_CREATE_PROCESS_USE_PROCESS_TOKEN
         _In_ ULONG SessionIdWithToken; // use PH_CREATE_PROCESS_USE_SESSION_TOKEN

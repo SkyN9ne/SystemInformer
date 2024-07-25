@@ -728,14 +728,14 @@ PPH_PROCESS_ITEM PhpCreateProcessItemForHiddenProcess(
     if (NT_SUCCESS(status))
     {
         PPH_STRING commandLine;
-        ULONG i;
+        SIZE_T i;
 
         if (NT_SUCCESS(status = PhGetProcessCommandLine(processHandle2, &commandLine)))
         {
             // Some command lines (e.g. from taskeng.exe) have nulls in them.
             // Since Windows can't display them, we'll replace them with
             // spaces.
-            for (i = 0; i < (ULONG)commandLine->Length / sizeof(WCHAR); i++)
+            for (i = 0; i < commandLine->Length / sizeof(WCHAR); i++)
             {
                 if (commandLine->Buffer[i] == UNICODE_NULL)
                     commandLine->Buffer[i] = ' ';
@@ -1657,7 +1657,7 @@ NTSTATUS PhEnumCsrProcessHandles(
         if (stop)
             break;
 
-        if (NT_SUCCESS(KphEnumerateProcessHandles2(csrProcessHandles[i], &handles)))
+        if (NT_SUCCESS(KsiEnumerateProcessHandles(csrProcessHandles[i], &handles)))
         {
             for (j = 0; j < handles->HandleCount; j++)
             {

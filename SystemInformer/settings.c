@@ -54,6 +54,7 @@ VOID PhAddDefaultSettings(
     PhpAddIntegerSetting(L"EnableLinuxSubsystemSupport", L"0");
     PhpAddIntegerSetting(L"EnableHandleSnapshot", L"1");
     PhpAddIntegerSetting(L"EnableMinidumpKernelMinidump", L"0");
+    PhpAddIntegerSetting(L"EnableMinidumpSnapshot", L"0");
     PhpAddIntegerSetting(L"EnableMonospaceFont", L"0");
     PhpAddIntegerSetting(L"EnableNetworkBoundConnections", L"1");
     PhpAddIntegerSetting(L"EnableNetworkResolve", L"1");
@@ -362,6 +363,10 @@ VOID PhAddDefaultSettings(
     PhpAddIntegerSetting(L"KsiDynDataNoEmbedded", L"0");
     PhpAddIntegerSetting(L"KsiClientProcessProtectionLevel", L"0");
     PhpAddStringSetting(L"KsiPreviousTemporaryDriverFile", L"");
+    PhpAddIntegerSetting(L"KsiEnableFsFeatureOffloadRead", L"1");  // SUPPORTED_FS_FEATURES_OFFLOAD_READ
+    PhpAddIntegerSetting(L"KsiEnableFsFeatureOffloadWrite", L"1"); // SUPPORTED_FS_FEATURES_OFFLOAD_WRITE
+    PhpAddIntegerSetting(L"KsiEnableFsFeatureQueryOpen", L"1");    // SUPPORTED_FS_FEATURES_QUERY_OPEN
+    PhpAddIntegerSetting(L"KsiEnableFsFeatureBypassIO", L"1");     // SUPPORTED_FS_FEATURES_BYPASS_IO
 }
 
 VOID PhUpdateCachedSettings(

@@ -229,6 +229,7 @@ typedef struct _PH_PROCESS_ITEM
     PH_QUEUED_LOCK ServiceListLock;
 
     WCHAR ProcessIdString[PH_INT32_STR_LEN_1];
+    WCHAR ProcessIdHexString[PH_PTR_STR_LEN_1];
     //WCHAR ParentProcessIdString[PH_INT32_STR_LEN_1];
     //WCHAR SessionIdString[PH_INT32_STR_LEN_1];
     WCHAR LxssProcessIdString[PH_INT32_STR_LEN_1];
@@ -282,6 +283,7 @@ typedef struct _PH_PROCESS_ITEM
     PPH_STRING UserName;
 
     PROCESS_DISK_COUNTERS DiskCounters;
+    PROCESS_NETWORK_COUNTERS NetworkCounters;
     ULONGLONG ContextSwitches;
 
     ULONGLONG ProcessSequenceNumber;

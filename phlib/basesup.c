@@ -167,7 +167,6 @@ NTSTATUS PhpBaseThreadStart(
 
 #ifdef DEBUG
     dbg.ClientId = NtCurrentTeb()->ClientId;
-
     dbg.StartAddress = context.StartAddress;
     dbg.Parameter = context.Parameter;
     dbg.CurrentAutoPool = NULL;
@@ -256,6 +255,8 @@ NTSTATUS PhCreateUserThread(
     CLIENT_ID clientId = { 0 };
 
     InitializeObjectAttributes(&objectAttributes, NULL, 0, NULL, NULL);
+    objectAttributes.SecurityDescriptor = ThreadSecurityDescriptor;
+
     attributeList->TotalLength = sizeof(buffer);
     attributeList->Attributes[0].Attribute = PS_ATTRIBUTE_CLIENT_ID;
     attributeList->Attributes[0].Size = sizeof(CLIENT_ID);

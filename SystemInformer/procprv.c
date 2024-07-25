@@ -726,7 +726,7 @@ VOID PhpProcessQueryStage1(
             {
                 // Some command lines (e.g. from taskeng.exe) have nulls in them. Since Windows
                 // can't display them, we'll replace them with spaces.
-                for (ULONG i = 0; i < (ULONG)commandLine->Length / sizeof(WCHAR); i++)
+                for (SIZE_T i = 0; i < commandLine->Length / sizeof(WCHAR); i++)
                 {
                     if (commandLine->Buffer[i] == UNICODE_NULL)
                         commandLine->Buffer[i] = L' ';
@@ -759,7 +759,7 @@ VOID PhpProcessQueryStage1(
     // Job
     if (processHandleLimited)
     {
-        if (KphLevel() >= KphLevelMed)
+        if (KsiLevel() >= KphLevelMed)
         {
             HANDLE jobHandle = NULL;
 
@@ -1105,6 +1105,7 @@ VOID PhpFillProcessItem(
     if (PH_IS_REAL_PROCESS_ID(ProcessItem->ProcessId))
     {
         PhPrintUInt32(ProcessItem->ProcessIdString, HandleToUlong(ProcessItem->ProcessId));
+        PhPrintUInt32IX(ProcessItem->ProcessIdHexString, HandleToUlong(ProcessItem->ProcessId));
         //PhPrintUInt32(ProcessItem->ParentProcessIdString, HandleToUlong(ProcessItem->ParentProcessId));
         //PhPrintUInt32(ProcessItem->SessionIdString, ProcessItem->SessionId);
     }
@@ -1340,7 +1341,7 @@ VOID PhpFillProcessItem(
     // WSL
     if (WindowsVersion >= WINDOWS_10_22H2 && ProcessItem->QueryHandle)
     {
-        if (ProcessItem->IsSubsystemProcess && KphLevel() >= KphLevelMed)
+        if (ProcessItem->IsSubsystemProcess && KsiLevel() >= KphLevelMed)
         {
             ULONG lxssProcessId;
 
@@ -1367,7 +1368,7 @@ VOID PhpFillProcessItem(
     }
 }
 
-FORCEINLINE VOID PhpUpdateDynamicInfoProcessItem(
+VOID PhpUpdateDynamicInfoProcessItem(
     _Inout_ PPH_PROCESS_ITEM ProcessItem,
     _In_ PSYSTEM_PROCESS_INFORMATION Process
     )
@@ -1381,6 +1382,16 @@ FORCEINLINE VOID PhpUpdateDynamicInfoProcessItem(
         if (NT_SUCCESS(PhGetProcessPriority(ProcessItem->QueryHandle, &priorityClass)))
         {
             ProcessItem->PriorityClass = priorityClass;
+        }
+
+        if (WindowsVersion >= WINDOWS_11_24H2)
+        {
+            PROCESS_NETWORK_COUNTERS networkCounters;
+
+            if (NT_SUCCESS(PhGetProcesNetworkIoCounters(ProcessItem->QueryHandle, &networkCounters)))
+            {
+                ProcessItem->NetworkCounters = networkCounters;
+            }
         }
     }
     else
@@ -2709,7 +2720,7 @@ VOID PhProcessProviderUpdate(
                 BOOLEAN isInSignificantJob = FALSE;
                 BOOLEAN isInJob = FALSE;
 
-                if (KphLevel() >= KphLevelMed)
+                if (KsiLevel() >= KphLevelMed)
                 {
                     HANDLE jobHandle = NULL;
 

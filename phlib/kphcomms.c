@@ -593,6 +593,12 @@ VOID WINAPI KphpCommsIoCallback(
         goto Exit;
     }
 
+    // Boost the priority of the thread handling this message (dmex)
+    if (msg->Overlapped.hEvent)
+    {
+        NtSetEventBoostPriority(msg->Overlapped.hEvent);
+    }
+
     if (msg->MessageHeader.ReplyLength)
     {
         replyToken = (ULONG_PTR)&msg->MessageHeader;
@@ -762,16 +768,15 @@ NTSTATUS KphCommsStart(
 
     for (ULONG i = 0; i < KphpCommsMessageCount; i++)
     {
-        status = NtCreateEvent(&KphpCommsMessages[i].Overlapped.hEvent,
+        status = PhCreateEvent(&KphpCommsMessages[i].Overlapped.hEvent,
                                EVENT_ALL_ACCESS,
-                               NULL,
                                NotificationEvent,
                                FALSE);
 
         if (!NT_SUCCESS(status))
             goto Exit;
 
-        NtSetEventBoostPriority(KphpCommsMessages[i].Overlapped.hEvent);
+        //NtSetEventBoostPriority(KphpCommsMessages[i].Overlapped.hEvent);
 
         RtlZeroMemory(&KphpCommsMessages[i].Overlapped,
             FIELD_OFFSET(OVERLAPPED, hEvent));
